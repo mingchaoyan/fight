@@ -1,0 +1,12 @@
+{application, fight,
+ [
+  {description, ""},
+  {vsn, "1"},
+  {registered, []},
+  {applications, [
+                  kernel,
+                  stdlib
+                 ]},
+  {mod, { fight_app, []}},
+  {env, []}
+ ]}.
