@@ -6,13 +6,15 @@
 %%% @end
 %%%-------------------------------------------------------------------
 
--module(fight_side_sup_d).
+-module(fight_mgr).
+
+-include("fight.hrl").
 
 -behaviour(gen_server).
 
 %% API
--export([start_link/2,
-         get_order_list/0
+-export([start_link/1,
+         get_next_action_unit/0
         ]).
 
 %% gen_server callbacks
@@ -34,11 +36,11 @@
 %% @spec start_link() -> {ok, Pid} | ignore | {error, Error}
 %% @end
 %%--------------------------------------------------------------------
-start_link(Name, FightSideState) ->
-    gen_server:start_link({local, Name}, ?MODULE, [FightSideState], []).
+start_link(FightState) ->
+    gen_server:start_link({local, ?MODULE}, ?MODULE, [FightState], []).
 
-get_order_list() ->
-    1.
+get_next_action_unit() ->
+    gen_server:call(self(), get_next_action_unit).
 
 %%%===================================================================
 %%% gen_server callbacks
@@ -55,8 +57,18 @@ get_order_list() ->
 %%                     {stop, Reason}
 %% @end
 %%--------------------------------------------------------------------
-init([FightSideState]) ->
-    {ok, FightSideState}.
+init([FightState]) ->
+    fight_side_mgr:start_link(
+      #fight_side_state{
+         side = attacker,
+         pname = fight_attacker_mgr
+        }),
+    fight_side_mgr:start_link(
+      #fight_side_state{
+         side = defenser,
+         pname = fight_defenser_mgr
+        }),
+    {ok, FightState}.
 
 %%--------------------------------------------------------------------
 %% @private
@@ -72,6 +84,12 @@ init([FightSideState]) ->
 %%                                   {stop, Reason, State}
 %% @end
 %%--------------------------------------------------------------------
+handle_call(get_next_action_unit, _From, State) ->
+    FightAttackerList = gen_server:call(fight_attacker_mgr, get_order_list),
+    FightDefenserList = gen_server:call(fight_defenser_mgr, get_order_list),
+    SortedList = lists:sort(FightAttackerList ++ FightDefenserList),
+    {reply, hd(SortedList), State};
+
 handle_call(_Request, _From, State) ->
     Reply = ok,
     {reply, Reply, State}.

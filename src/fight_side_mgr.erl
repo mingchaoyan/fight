@@ -6,13 +6,15 @@
 %%% @end
 %%%-------------------------------------------------------------------
 
--module(fight_sup_d).
+-module(fight_side_mgr).
 
 -behaviour(gen_server).
 
+-include("fight.hrl").
+
 %% API
--export([start_link/0,
-         get_next_action_unit/0
+-export([start_link/1,
+         get_order_list/0
         ]).
 
 %% gen_server callbacks
@@ -22,8 +24,6 @@
          handle_info/2,
          terminate/2,
          code_change/3]).
-
--record(state, {}).
 
 %%%===================================================================
 %%% API
@@ -36,11 +36,11 @@
 %% @spec start_link() -> {ok, Pid} | ignore | {error, Error}
 %% @end
 %%--------------------------------------------------------------------
-start_link() ->
-    gen_server:start_link({local, ?MODULE}, ?MODULE, [], []).
+start_link(FightSideState) ->
+    gen_server:start_link({local, FightSideState#fight_side_state.pname}, ?MODULE, [FightSideState], []).
 
-get_next_action_unit() ->
-    gen_server:call(self(), get_next_action_unit).
+get_order_list() ->
+    1.
 
 %%%===================================================================
 %%% gen_server callbacks
@@ -57,8 +57,16 @@ get_next_action_unit() ->
 %%                     {stop, Reason}
 %% @end
 %%--------------------------------------------------------------------
-init([]) ->
-    {ok, #state{}}.
+init([FightSideState]) ->
+    case FightSideState#fight_side_state.side of
+        attacker ->
+            fight_unit:start_link(attacker_1, data:g(attacker_1)),
+            fight_unit:start_link(attacker_2, data:g(attacker_2));
+        defenser ->
+            fight_unit:start_link(defenser_1, data:g(defenser_1)),
+            fight_unit:start_link(defenser_2, data:g(defenser_2))
+    end,
+    {ok, FightSideState}.
 
 %%--------------------------------------------------------------------
 %% @private
@@ -74,12 +82,6 @@ init([]) ->
 %%                                   {stop, Reason, State}
 %% @end
 %%--------------------------------------------------------------------
-handle_call(get_next_action_unit, _From, State) ->
-    FightAttackerList = gen_server:call(fight_attacker_sup_d, get_order_list),
-    FightDefenserList = gen_server:call(fight_defenser_sup_d, get_order_list),
-    SortedList = lists:sort(FightAttackerList ++ FightDefenserList),
-    {reply, hd(SortedList), State};
-
 handle_call(_Request, _From, State) ->
     Reply = ok,
     {reply, Reply, State}.
